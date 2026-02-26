@@ -1,0 +1,119 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Stage {
+  PLANNING_APPROVAL
+  DEVELOPMENT_APPROVAL
+}
+
+enum TaskStatus {
+  NOT_STARTED
+  REQUESTED
+  IN_PROGRESS
+  REVISED
+  FINALISED
+  SUBMITTED
+  APPROVED
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  users     User[]
+  sites     Site[]
+}
+
+model User {
+  id             String   @id @default(cuid())
+  email          String   @unique
+  name           String
+  passwordHash   String
+  organizationId String
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sessions     Session[]
+  reminders    Reminder[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Site {
+  id                   String   @id @default(cuid())
+  name                 String
+  address              String
+  council              String
+  area                 String
+  currentSituation     String
+  proposedDevelopment  String
+  numberOfHouses       Int
+  numberOfStoreys      Int
+  organizationId       String
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tasks         Task[]
+  documents     Document[]
+}
+
+model Task {
+  id                String     @id @default(cuid())
+  siteId            String
+  stage             Stage
+  title             String
+  provider          String
+  isOptional        Boolean    @default(false)
+  expectedDays      Int
+  status            TaskStatus @default(NOT_STARTED)
+  dueDate           DateTime?
+  reminderDaysPrior Int        @default(3)
+  notes             String?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  site      Site       @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  reminders Reminder[]
+  documents Document[]
+}
+
+model Reminder {
+  id         String   @id @default(cuid())
+  taskId      String
+  recipientId String
+  remindAt    DateTime
+  sentAt      DateTime?
+  createdAt   DateTime @default(now())
+
+  task      Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  recipient User @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+}
+
+model Document {
+  id          String   @id @default(cuid())
+  siteId       String
+  taskId       String?
+  label        String
+  category     String
+  fileName     String
+  storagePath  String
+  uploadedAt   DateTime @default(now())
+
+  site Site  @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  task Task? @relation(fields: [taskId], references: [id], onDelete: SetNull)
+}
